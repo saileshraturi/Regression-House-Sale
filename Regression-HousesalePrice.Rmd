@@ -1,0 +1,205 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(magrittr)
+library(RColorBrewer)
+attach(Housesale)
+library(readr)
+library(caret)
+
+```
+
+```{r}
+## Importing data from CSV and summary
+getwd()
+setwd("/Users/saileshraturi/Documents/GitHub/Regression-House-Sale")
+Housesale = read.csv("kc_house_data.csv")
+Housesale
+head(Housesale)
+str(Housesale)
+summary(Housesale)
+```
+
+```{r}
+
+log_sqftliving = log10(sqft_living)
+Housesale = Housesale %>% mutate(log_price = log10(price))
+x = min(sqft_living)
+y = max(sqft_living)
+z = (y-x)
+
+#taking anitlog
+l1 = exp(2.9)
+l1
+l2 = exp(3.6)
+l2
+#Plot for Price
+g1 = ggplot(Housesale, aes(x = log_price)) + geom_histogram(fill = "red", binwidth = .10)
+#Plot for sqftliving
+g2 = ggplot(Housesale, aes(x = log_sqftliving)) + geom_histogram(fill = "blue", binwidth = .20)
+ 
+# grid.arrange(g1,g2,nrow = 1,ncol = 2)
+
+ #House Price : Plot reflect the most of the prices of house is lie between 5.4 to 6 million.
+ #Sqftliving :  Most of houses have  sqft living between 1800 to 3600 sqft.
+ 
+
+
+```
+```{r}
+ #plot for bathroom
+ 
+ ggplot(Housesale, aes(x = bathrooms)) + geom_histogram(fill = "tomato", binwidth = 0.5) + scale_x_continuous(limits = c(1,8))
+x = max(bathrooms)
+y = min(bathrooms)
+z = mad(bathrooms)
+```
+```{r}
+#House Price vs size
+
+#jitter used to reduce overlapping
+g3 = ggplot(Housesale, aes(x = log_sqftliving, y = log_price)) +  geom_jitter(alpha = 0.5, size = 2, color = "brown") + stat_smooth(method = "lm", se = F, span = 0.7) + labs("title = sqftliving vs Price")
+
+#HousePrice vs Bedroom
+
+mycolors = c(brewer.pal(name = "Dark2", n=8), brewer.pal(name="Paired", n=6))
+#Housesale = Housesale %>% filter(bedrooms < 30)
+#Housesale
+g4 = ggplot(Housesale, aes(x = bedrooms, y = log_price, col = bedrooms)) + geom_point(alpha = 0.5, size = 2) + geom_smooth(method = "lm",se = F) + scale_color_gradientn(colors = mycolors)
+
+grid.arrange(g3,g4,nrow = 1, ncol = 2)
+
+#ggplot(aes(Housesale,x=bedrooms,y=log_price))+
+#geom_point(alpha=0.5,size=2)+
+#geom_smooth(method="lm",se=F)+
+#labs("title=Bedrooms vs Price")+scale_color_gradientn(colors=mycolors)+theme(legend.position="none")
+
+# positive relationship of bedroom and size vs Price
+```
+```{r}
+
+ g5 = ggplot(Housesale, aes(x = sqft_basement, y = log_price)) + geom_point( col = "green", alpha = 0.5) + stat_smooth(method = "lm", se = F, alpha = 0.6, size = 0.5)
+
+g6 = ggplot(Housesale, aes(x = yr_built, y = log_price)) + geom_jitter(col = "blue", alpha = 0.5) + geom_smooth(method = "auto", se = T)
+
+grid.arrange(g5,g6,nrow = 1, ncol = 2)
+
+# Positive relationship of basement size and Price whereas price increase for houses built after 1975
+
+```
+```{r}
+
+table(condition)
+Housesale %>% group_by(factor(condition)) %>% summarise(mean_price = mean(log_price), sd = sd(log_price), count = n())
+```
+```{r}
+# Distribution of Houseprice according to condition of house
+
+ggplot(Housesale, aes(x = factor(condition), y = log_price, fill = factor(condition))) + geom_boxplot()
+
+# Relationship between, size, price and condition
+ggplot(Housesale, aes(x = log_sqftliving, y = log_price, color = factor(condition))) + geom_point(alpha = 0.5) +  geom_smooth(method = "lm", se = F, color = "Black") + facet_wrap(~condition) 
+
+#grid.arrange(g7, g8, nrow = 1, ncol = 2)
+
+```
+```{r}
+table(floors)
+Housesale %>% group_by(flr = factor(floors)) %>% summarise(floor_cnt = n()) %>%
+ggplot(aes(x = flr,floor_cnt, fill = flr)) + geom_bar(stat = "identity")
+
+#hist(floors)
+
+```
+
+```{r}
+ggplot(Housesale, aes(x = factor(floors), y = (log_price),fill = factor(floors))) + geom_boxplot()
+
+# mean price tends to increase from 1 to 2.5 but afterwads decline in mean price
+
+```
+```{r}
+#ggplot(Housesale, aes(x = yr_built, y = log_price)) + geom_point()
+#+ 
+#Houses bulit yearly
+
+Housesale %>% ggplot(aes(x = yr_built)) + geom_histogram(binwidth = 5, fill = rainbow(1), alpha = 0.5) + scale_x_continuous(limits = c(1900,2016))
+```
+```{r}
+# House built year wise vs size of house(sqft)
+options(repr.plot.width = 10, repr.plot.height = 6)
+ggplot(Housesale, aes(x = factor(yr_built), y = log_sqftliving, fill = factor(yr_built))) + geom_boxplot() + theme(legend.position = "none") 
+
+ggplot(Housesale, aes(x=yr_built, y = log_sqftliving, color = "green")) + geom_jitter(alpha =0.5, size = 0.5) + stat_smooth(method = "auto", color = "black")
+
+# trend of increase in sqft living 1950 onwards till 1990
+
+```
+```{r}
+#House View
+
+table(Housesale$waterfront)
+
+Housesale$houseview = ifelse(waterfront ==1,TRUE,FALSE)
+#ggplot(Housesale, aes(x = houseview, y = log_price, fill = factor(waterfront))) + geom_boxplot()
+# Most of the houses doesnot have waterfront while houses with waterfront are more expensive
+
+Housesale %>% group_by(houseview) %>% summarise(meanprice = mean(log_price),housecount = n() )
+
+ggplot(Housesale,aes( x = log_sqftliving, y= log_price, col = houseview)) + geom_point(alpha = 0.5) + geom_smooth(method = "lm" ,size =0.5, color = "black") + scale_color_manual(values = rainbow(n=12)) +facet_wrap(~houseview)
+# sold houses which have waterfront are expensive and high sqftliving but less in number
+
+```
+
+```{r}
+table(grade)
+
+#grade vs price
+
+#ggplot(Housesale, aes(x = factor(grade), y = log_price, fill = factor(grade))) + geom_boxplot(alpha = 0.5)
+
+# grade vs sqftliving vs price
+
+ggplot(Housesale, aes(x = log_sqftliving, y = log_price, color = factor(grade))) + geom_point(alpha = 0.5) + facet_wrap(~grade) + geom_smooth(method = "lm", color = "black") + scale_color_manual(values = rainbow(n=12)) + theme(legend.position = "none")
+
+```
+```{r}
+# Renovate year
+
+table(Housesale$yr_renovated)
+
+Housesale$isreno = ifelse(yr_renovated == 0, FALSE, TRUE)
+table(Housesale$isreno)
+
+# histogram of yr renovated
+ggplot(Housesale, aes(yr_renovated)) + geom_histogram(alpha = 0.5,binwidth = 1, fill = rainbow(1)) + scale_x_continuous(limits = c(1900,2016))
+
+#ggplot(Housesale, aes(x = factor(yr_renovated), y= log_price, fill = factor(yr_renovated))) + geom_boxplot()
+
+# year built vs price vs renovate
+ggplot(Housesale, aes(x = yr_built, y = log_price, col = yr_renovated)) + geom_jitter(alpha = 0.5)
+
+#Renovate year vs year built
+ggplot(Housesale, aes(x = yr_built, y = yr_renovated, color = isreno)) + geom_jitter(alpha = 0.5) + facet_wrap(~isreno)
+
+
+```
+
