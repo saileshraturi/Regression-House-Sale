@@ -16,6 +16,7 @@ When you save the notebook, an HTML file containing the code and output will be 
 The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
 
 ```{r}
+#install.packages("tidyverse")
 library(ggplot2)
 library(dplyr)
 library(gridExtra)
@@ -24,6 +25,10 @@ library(RColorBrewer)
 attach(Housesale)
 library(readr)
 library(caret)
+library(corrplot)
+library(caTools)
+library(tidyverse)
+library(randomForest)
 
 ```
 
@@ -201,5 +206,150 @@ ggplot(Housesale, aes(x = yr_built, y = log_price, col = yr_renovated)) + geom_j
 ggplot(Housesale, aes(x = yr_built, y = yr_renovated, color = isreno)) + geom_jitter(alpha = 0.5) + facet_wrap(~isreno)
 
 
+```
+
+```{r}
+#splitting the data into train and test subset
+set.seed(0512)
+sample = sample.split(Housesale, SplitRatio = .70)
+trainhs = subset(Housesale, sample == TRUE)
+tesths = subset(Housesale, sample == FALSE)
+nrow(Housesale)
+ncol(Housesale)
+nrow(trainhs)
+nrow(tesths)
+
+
+```
+
+
+```{r}
+# variable significance and checking correlation
+
+corr =  cor(Housesale[,3:21])
+corrplot(corr)
+
+
+
+```
+
+```{r}
+# model creation using linear regression(parameters on basis of correleation matrix)
+
+modellm1 = lm(log(price) ~ bedrooms + bathrooms + sqft_living + waterfront + view + condition + grade + yr_built + yr_renovated + zipcode  + lat + sqft_living15 + sqft_lot15   , data = trainhs)
+
+summary(modellm1)
+#plot(modellm1)
+```
+
+```{r}
+# model creation using linear regression or training model( all parameters)
+modellm2 = lm(log(price) ~ ., data = trainhs[,3:22])
+summary(modellm2)
+#plot(modellm2)
+
+```
+```{r}
+# model creation using linear regression using cross-validation technique(partitioning dataset into random partition - train and test(number of folds), average of accuracy metrics for all folds taken to come across how training model will perform on unknown test dataset)
+#modellm3 = train(log(price) ~ .,data = trainhs[,3:22], method = "lm", trControl = trainControl(method = "cv",number = 10, savePredictions = TRUE))
+install.packages("ggfortify")
+modellm3 = train(price ~ .,data = Housesale, method = "lm", trControl = trainControl(method = "cv",number = 5, verboseIter = TRUE))
+summary(modellm3)
+library(ggfortify)
+autoplot(modellm3,ncol = 2)
+
+
+
+```
+```{r}
+# model creation using linear regression using cross-validation technique(partitioning dataset into random partition - train and test(number of folds), average of accuracy metrics for all folds taken to come across how training model will perform on unknown test dataset)
+modellm6 = train(log(price) ~  bedrooms + bathrooms + sqft_living + waterfront + view + condition + grade + yr_built + yr_renovated  + lat + sqft_living15 + sqft_lot15 + I(bedrooms^2)  + I(sqft_living^2) + I(view^2) + I(grade^2) + I(yr_built^2) + I(yr_renovated^2)  + I(lat^2) + I(sqft_living15^2)+ I(sqft_lot15^2),data = trainhs[,3:22], method = "lm", trControl = trainControl(method = "cv",number = 10, savePredictions = TRUE))
+summary(modellm6)
+#parametergrid <- expand.grid(c(5,6,7,8))
+#summary(modellm3)
+
+
+```
+```{r}
+#checking residuals plot for each parameter
+g1 = ggplot(trainhs, aes(bathrooms, residuals(modellm1))) + geom_point() + geom_smooth()
+g2 = ggplot(trainhs, aes(sqft_living, residuals(modellm1))) + geom_point() + geom_smooth()
+g3 = ggplot(trainhs, aes(view, residuals(modellm1))) + geom_point() + geom_smooth()
+g4 = ggplot(trainhs, aes(grade, residuals(modellm1))) + geom_point() + geom_smooth()
+g5 = ggplot(trainhs, aes(yr_built, residuals(modellm1))) + geom_point() + geom_smooth()
+g6 =ggplot(trainhs, aes(sqft_living15, residuals(modellm1))) + geom_point() + geom_smooth()
+g7 = ggplot(trainhs, aes(bedrooms, residuals(modellm1))) + geom_point() + geom_smooth()
+g8 = ggplot(trainhs, aes(waterfront, residuals(modellm1))) + geom_point() + geom_smooth()
+g9 = ggplot(trainhs, aes(lat, residuals(modellm1))) + geom_point() + geom_smooth()
+g10 =ggplot(trainhs, aes(sqft_lot15, residuals(modellm1))) + geom_point() + geom_smooth()
+g11 =ggplot(trainhs, aes(condition, residuals(modellm1))) + geom_point() + geom_smooth()
+g12 =ggplot(trainhs, aes(yr_renovated, residuals(modellm1))) + geom_point() + geom_smooth()
+g13 =ggplot(trainhs, aes(zipcode, residuals(modellm1))) + geom_point() + geom_smooth()
+
+grid.arrange(g1,g2,g3,g4, nrow = 1, ncol = 4)
+grid.arrange(g5,g6,g7,g8, nrow = 1, ncol = 4)
+grid.arrange(g9,g10,g11,g12,g13, nrow = 1, ncol = 5)
+
+```
+```{r}
+
+#model creation using nonlinearlity of parameters based on residuals plot
+#modellm4 = lm(log(price) ~  bedrooms + bathrooms + sqft_living + waterfront + view + condition + grade + yr_built + yr_renovated + zipcode  + lat + sqft_living15 + sqft_lot15 + I(bedrooms^2) + I(bathrooms^2) + I(sqft_living^2)+ I(waterfront^2)  + I(view^2) + I(condition^2) + I(grade^2) + I(yr_built^2) + I(yr_renovated^2)  +I(zipcode^2)  + I(lat^2) + I(sqft_living15^2)+ I(sqft_lot15^2) , data = trainhs)
+#summary(modellm4)
+#plot(modellm4)
+modellm4 = lm(log(price) ~  bedrooms + bathrooms + sqft_living + waterfront + view + condition + grade + yr_built + yr_renovated + zipcode  + lat + sqft_living15 + sqft_lot15 + I(bedrooms^2) + I(bathrooms^2) + I(sqft_living^2)  + I(grade^2) + I(yr_built^2) + I(yr_renovated^2)  +I(zipcode^2)  + I(lat^2) + I(sqft_living15^2)+ I(sqft_lot15^2) , data = trainhs)
+summary(modellm4)
+```
+```{r}
+#model creation after removing less significant parameters identified in modellm4
+#modellm5 = update(modellm4, ~.-zipcode-I(bathrooms^2)-I(waterfront^2)-I(condition^2)-I(zipcode^2))
+modellm5 = lm(log(price) ~  bedrooms + bathrooms + sqft_living + waterfront + view + condition + grade + yr_built + yr_renovated  + lat + sqft_living15 + sqft_lot15 + I(bedrooms^2)  + I(sqft_living^2) + I(view^2) + I(grade^2) + I(yr_built^2) + I(yr_renovated^2)  + I(lat^2) + I(sqft_living15^2)+ I(sqft_lot15^2) , data = trainhs)
+summary(modellm5)
+plot(modellm5)
+
+```
+```{r}
+# rmse for regression model
+
+testmodel = predict(modellm7, tesths[,3:21])
+plot(exp(testmodel) ~ tesths$price)
+#plot(testmodel ~ tesths$price)
+abline(a = 0, b = 1)
+
+res1 =  exp(testmodel) - tesths$price
+#res1 =  testmodel - tesths$price
+#rmse <- sqrt(sum((exp(testmodel) - tesths$price)^2)/length(tesths$price))
+rmse = sqrt(mean(res1^2))
+rmse
+
+```
+```{r}
+
+#trying random forest model
+modelrf  = randomForest(price ~ ., trainhs[,3:21],mtry = 6, importance = TRUE)
+summary(modelrf)
+importance(modelrf)
+varImpPlot(modelrf,type = 2)
+para = sqft_living+grade+lat+sqft_living15+sqft_above+long+bathrooms+yr_built + view
+```
+```{r}
+
+
+modellm7 = lm(log(price) ~ sqft_living + grade + lat + sqft_living15 + sqft_above + long + bathrooms + yr_built + view, data = trainhs[,3:21])
+summary(modellm7)
+```
+
+```{r}
+#rmse for random forest model
+testmodel_rf = predict(modelrf, tesths)
+#p1 = plot(tesths$price ~ exp(testmodel))
+#abline(a =0, b =1)
+#p2 = plot(tesths$price ~ testmodel_rf)
+#abline(a =0, b =1)
+
+#grid.arrange(p1,p2, nrow = 1, ncol = 2)
+res1 =  testmodel_rf - tesths$price
+rmse = sqrt(mean(res1^2))
+rmse
 ```
 
